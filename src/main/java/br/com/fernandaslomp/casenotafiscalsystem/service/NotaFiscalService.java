@@ -1,93 +1,72 @@
 package br.com.fernandaslomp.casenotafiscalsystem.service;
 
 import br.com.fernandaslomp.casenotafiscalsystem.dto.NotaFiscalRequestDTO;
-import br.com.fernandaslomp.casenotafiscalsystem.dto.PaymentNotaFiscalDTO;
-import br.com.fernandaslomp.casenotafiscalsystem.entity.Client;
+import br.com.fernandaslomp.casenotafiscalsystem.dto.ClientDTO;
 import br.com.fernandaslomp.casenotafiscalsystem.entity.NotaFiscal;
-import br.com.fernandaslomp.casenotafiscalsystem.entity.PaymentMethod;
-import br.com.fernandaslomp.casenotafiscalsystem.entity.PaymentNotaFiscal;
-import br.com.fernandaslomp.casenotafiscalsystem.repository.PaymentMethodRepository;
+import br.com.fernandaslomp.casenotafiscalsystem.exception.InvalidNotaFiscalException;
 import br.com.fernandaslomp.casenotafiscalsystem.repository.NotaFiscalRepository;
-import br.com.fernandaslomp.casenotafiscalsystem.repository.PaymentNotaFiscalRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-import static br.com.fernandaslomp.casenotafiscalsystem.enums.PaymentTypeEnum.BOLETO;
+import org.springframework.web.client.RestClient;
 
 @Service
 public class NotaFiscalService {
+
+    private RestClient restClient;
+
+    private static final Logger logger = LoggerFactory.getLogger(NotaFiscalService.class);
+
+    public NotaFiscalService(RestClient.Builder builder) {
+        this.restClient = builder
+                .baseUrl("http://localhost:8080/api/mock/client/")
+                .build();
+    }
 
     @Autowired
     NotaFiscalRepository notaFiscalRepository;
 
     @Autowired
-    PaymentMethodRepository paymentMethodRepository;
-
-    @Autowired
-    private PaymentNotaFiscalRepository paymentNotaFiscalRepository;
-
-    @Autowired
-    private BillingService billingService;
-    @Autowired
     private ClientService clientService;
 
+    @Autowired
+    private PaymentService paymentService;
+
+
+
     @Transactional
-    public String processNotaFiscal(NotaFiscalRequestDTO notaFiscal) {
+    public void processNotaFiscal(NotaFiscalRequestDTO notaFiscal) {
 
         //validar nota gov
         validate(notaFiscal);
 
         //obter User
-        Client u = clientService.findClientData(notaFiscal.getCPF());
+        ClientDTO clientDTO = clientService.findClientData(notaFiscal.getCpfCnpj());
 
         //salva notaFiscal
-        NotaFiscal nf = createNotaFiscal(notaFiscal, u);
+        NotaFiscal nf = createNotaFiscal(notaFiscal, clientDTO);
 
         // envia para pagamentos
-        processPayments(notaFiscal.getPayments(), nf);
-
-        return "ok";
-    }
-
-    private void processPayments(List<PaymentNotaFiscalDTO> payments, NotaFiscal nf) {
-
-        for (PaymentNotaFiscalDTO payment : payments) {
-
-            PaymentMethod py = createPayment(payment);
-            createPaymentNotaFiscal(nf, py);
-
-            if (payment.getPaymentMethodId().equals(BOLETO.getId())) {
-                billingService.billing(py);
-            }
-        }
+        paymentService.processPayments(notaFiscal.getPayments(), nf);
     }
 
     private void validate(NotaFiscalRequestDTO notaFiscal) {
 
+        logger.info("validate nota fiscal process started - NotaId: " + notaFiscal.getIdNotaFiscal());
+
+        var response = restClient.get().uri(notaFiscal.getIdNotaFiscal()).retrieve().toEntity(String.class);
+
+        if (response.getStatusCode().isError() )
+            throw new InvalidNotaFiscalException("InvalidNotaFiscalException");
+
     }
 
-    private NotaFiscal createNotaFiscal(NotaFiscalRequestDTO notaFiscal, Client u) {
+    private NotaFiscal createNotaFiscal(NotaFiscalRequestDTO notaFiscal, ClientDTO u) {
         return notaFiscalRepository.save(NotaFiscal.builder()
-                .numberNota(notaFiscal.getIdNotaFiscal())
-                .cliente(u).build());
+                .numberNota(notaFiscal.getIdNotaFiscal()).amount(notaFiscal.getTotalAmount())
+                .clientId(u.getId()).build());
 
-    }
-
-    private PaymentMethod createPayment(PaymentNotaFiscalDTO pagamentoRequest) {
-        return paymentMethodRepository.save(PaymentMethod.builder()
-                .paymentTypeId(pagamentoRequest.getPaymentMethodId())
-                .amount(pagamentoRequest.getAmount())
-                .build());
-
-    }
-
-    private PaymentNotaFiscal createPaymentNotaFiscal(NotaFiscal notaFiscal, PaymentMethod paymentMethod) {
-        return paymentNotaFiscalRepository.save(PaymentNotaFiscal.builder()
-                .payment(paymentMethod)
-                .notaFiscal(notaFiscal)
-                .build());
     }
 }

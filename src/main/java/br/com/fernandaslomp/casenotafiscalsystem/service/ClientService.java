@@ -1,23 +1,34 @@
 package br.com.fernandaslomp.casenotafiscalsystem.service;
 
-import br.com.fernandaslomp.casenotafiscalsystem.entity.Client;
-import br.com.fernandaslomp.casenotafiscalsystem.repository.NotaFiscalRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import br.com.fernandaslomp.casenotafiscalsystem.dto.ClientDTO;
+import br.com.fernandaslomp.casenotafiscalsystem.exception.ClientNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 @Service
 public class ClientService {
 
-    @Autowired
-    NotaFiscalRepository notaFiscalRepository;
+    private RestClient restClient;
 
-    public Client findClientData(String cpf) {
+    private static final Logger logger = LoggerFactory.getLogger(NotaFiscalService.class);
 
-        //obter User
-        Client client = Client.builder()
-                .id(1L)
-                .CPF("123").build();
+    public ClientService(RestClient.Builder builder) {
+        this.restClient = builder
+                .baseUrl("http://localhost:8080/api/mock/client/")
+                .build();
+    }
 
-        return client;
+    public ClientDTO findClientData(String cpfCnpj) {
+
+        logger.info("findClientData process started - cpfCnpj: " + cpfCnpj);
+
+        var response = restClient.get().uri(cpfCnpj).retrieve().toEntity(ClientDTO.class);
+
+        if (response.getStatusCode().isError() || !response.hasBody())
+            throw new ClientNotFoundException("ClientNotFoundException!");
+
+        return response.getBody();
     }
 }

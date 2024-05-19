@@ -15,10 +15,9 @@ public class NotaFiscalRequestDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String CPF;
+    private String cpfCnpj;
     private String idNotaFiscal;
     private Double totalAmount;
-    private String status;
     private LocalDateTime issuanceDate;
     private List<PaymentNotaFiscalDTO> payments;
 }

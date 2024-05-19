@@ -11,6 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public interface NotaFiscalAPI {
 
     @PostMapping("/notas-fiscais")
-    public ResponseEntity<NotaFiscal> processNotaFiscal(@RequestBody NotaFiscalRequestDTO notaFiscal);
+    public ResponseEntity<NotaFiscal> createNotaFiscal(@RequestBody NotaFiscalRequestDTO notaFiscal);
 
 }

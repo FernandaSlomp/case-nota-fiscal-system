@@ -1,4 +1,4 @@
-package br.com.fernandaslomp.casenotafiscalsystem.entity;
+package br.com.fernandaslomp.casenotafiscalsystem.dto;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -13,16 +13,11 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 @Setter
 @Getter
-@Entity
 @Builder
-@Table(name ="cliente")
-
-public class Client implements Serializable {
+public class ClientDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
     private String CPF;
